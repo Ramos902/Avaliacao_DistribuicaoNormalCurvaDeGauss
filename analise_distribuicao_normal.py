@@ -3,16 +3,10 @@ import math
 import matplotlib.pyplot as plt
 
 
-# ==============================================================================
-# PARTE B — Leitura e organização dos dados
-# ==============================================================================
+# Parte B - Leitura dos dados do CSV
 def carregar_dados(caminho_arquivo, coluna="math score"):
-    """
-    Lê o arquivo CSV usando csv.DictReader, verifica valores ausentes ou
-    inválidos e retorna a lista de notas convertidas para inteiros.
-    """
     notas = []
-    ausentes_ou_invalidos = 0
+    invalidos = 0
     total_linhas = 0
 
     with open(caminho_arquivo, mode="r", encoding="utf-8") as arquivo:
@@ -22,43 +16,39 @@ def carregar_dados(caminho_arquivo, coluna="math score"):
             valor = linha.get(coluna, "").strip()
 
             if valor == "":
-                ausentes_ou_invalidos += 1
+                invalidos += 1
                 continue
 
             try:
-                nota = int(valor)
-                notas.append(nota)
+                notas.append(int(valor))
             except ValueError:
-                ausentes_ou_invalidos += 1
+                invalidos += 1
 
-    return notas, total_linhas, ausentes_ou_invalidos
+    return notas, total_linhas, invalidos
 
 
-# ==============================================================================
-# PARTE C — Medidas estatísticas (sem bibliotecas estatísticas)
-# ==============================================================================
+# Parte C - Calculo das medidas estatisticas na mao
 def calcular_media(dados):
     return sum(dados) / len(dados)
 
 
 def calcular_mediana(dados):
-    dados_ordenados = sorted(dados)
-    n = len(dados_ordenados)
+    ordenados = sorted(dados)
+    n = len(ordenados)
     meio = n // 2
 
     if n % 2 == 1:
-        return float(dados_ordenados[meio])
-    else:
-        return (dados_ordenados[meio - 1] + dados_ordenados[meio]) / 2.0
+        return float(ordenados[meio])
+    return (ordenados[meio - 1] + ordenados[meio]) / 2.0
 
 
 def calcular_modas(dados):
-    frequencias = {}
-    for valor in dados:
-        frequencias[valor] = frequencias.get(valor, 0) + 1
+    contagem = {}
+    for x in dados:
+        contagem[x] = contagem.get(x, 0) + 1
 
-    maior_freq = max(frequencias.values())
-    modas = [k for k, v in frequencias.items() if v == maior_freq]
+    maior_freq = max(contagem.values())
+    modas = [k for k, v in contagem.items() if v == maior_freq]
     return sorted(modas), maior_freq
 
 
@@ -73,41 +63,32 @@ def calcular_desvio_padrao_amostral(variancia):
 
 
 def calcular_assimetria(dados, media, desvio_padrao):
-    """
-    Calcula o coeficiente de assimetria amostral (momento de Fisher-Pearson):
-    g1 = [n / ((n - 1)(n - 2))] * soma(((x_i - media) / s)^3)
-    """
     n = len(dados)
     soma_cubos = sum(((x - media) / desvio_padrao) ** 3 for x in dados)
     return (n / ((n - 1) * (n - 2))) * soma_cubos
 
 
-# ==============================================================================
-# PARTE D — Regra empírica 68–95–99,7
-# ==============================================================================
+# Parte D - Regra 68-95-99,7
 def verificar_regra_empirica(dados, media, desvio_padrao):
     n = len(dados)
     resultados = {}
 
     for k in (1, 2, 3):
-        limite_inf = media - k * desvio_padrao
-        limite_sup = media + k * desvio_padrao
-        quantidade = sum(1 for x in dados if limite_inf <= x <= limite_sup)
-        percentual = (quantidade / n) * 100
-        resultados[k] = (limite_inf, limite_sup, quantidade, percentual)
+        lim_inf = media - k * desvio_padrao
+        lim_sup = media + k * desvio_padrao
+        qtd = sum(1 for x in dados if lim_inf <= x <= lim_sup)
+        perc = (qtd / n) * 100
+        resultados[k] = (lim_inf, lim_sup, qtd, perc)
 
     return resultados
 
 
-# ==============================================================================
-# PARTE E — Escores padronizados (Z-score) e valores atípicos
-# ==============================================================================
+# Parte E - Escore z e busca por valores atipicos (|z| > 3)
 def calcular_escore_z(x, media, desvio_padrao):
     return (x - media) / desvio_padrao
 
 
-def identificar_atipicos(dados, media, desvio_padrao):
-    """Retorna os valores da base que possuem |z| > 3."""
+def buscar_atipicos(dados, media, desvio_padrao):
     atipicos = []
     for x in dados:
         z = calcular_escore_z(x, media, desvio_padrao)
@@ -116,14 +97,11 @@ def identificar_atipicos(dados, media, desvio_padrao):
     return atipicos
 
 
-# ==============================================================================
-# PARTE F — Representação gráfica
-# ==============================================================================
+# Parte F - Grafico com histograma, curva normal e boxplot
 def densidade_normal(x, media, desvio_padrao):
-    """Função densidade de probabilidade da distribuição normal."""
-    coeficiente = 1.0 / (desvio_padrao * math.sqrt(2.0 * math.pi))
+    parte1 = 1.0 / (desvio_padrao * math.sqrt(2.0 * math.pi))
     expoente = -((x - media) ** 2) / (2.0 * (desvio_padrao ** 2))
-    return coeficiente * math.exp(expoente)
+    return parte1 * math.exp(expoente)
 
 
 def gerar_graficos(dados, media, desvio_padrao, caminho_saida="histograma_curva_normal.png"):
@@ -131,7 +109,7 @@ def gerar_graficos(dados, media, desvio_padrao, caminho_saida="histograma_curva_
         2, 1, figsize=(10, 7), gridspec_kw={"height_ratios": [3, 1]}, sharex=True
     )
 
-    # 1. Histograma das notas (normalizado com density=True para sobrepor a curva)
+    # Histograma das notas
     ax_hist.hist(
         dados,
         bins=20,
@@ -142,51 +120,37 @@ def gerar_graficos(dados, media, desvio_padrao, caminho_saida="histograma_curva_
         label="Histograma (math score)",
     )
 
-    # 2. Curva normal teórica sobreposta ao histograma
+    # Curva normal teorica
     x_min, x_max = min(dados), max(dados)
     passo = (x_max - x_min) / 300.0
-    valores_x = [x_min + i * passo for i in range(301)]
-    valores_y = [densidade_normal(x, media, desvio_padrao) for x in valores_x]
+    eixo_x = [x_min + i * passo for i in range(301)]
+    eixo_y = [densidade_normal(x, media, desvio_padrao) for x in eixo_x]
 
-    ax_hist.plot(
-        valores_x,
-        valores_y,
-        color="#C00000",
-        linewidth=2.2,
-        label="Curva Normal Teórica",
-    )
+    ax_hist.plot(eixo_x, eixo_y, color="#C00000", linewidth=2, label="Curva Normal Teorica")
 
-    # 3. Linha vertical indicando a média
-    ax_hist.axvline(
-        media,
-        color="#2E75B6",
-        linestyle="-",
-        linewidth=2,
-        label=f"Média ({media:.2f})",
-    )
-
-    # 4. Linhas verticais indicando 1 desvio-padrão abaixo e acima da média
+    # Linhas da media e de 1 desvio-padrao
+    ax_hist.axvline(media, color="#2E75B6", linestyle="-", linewidth=2, label=f"Media ({media:.2f})")
     ax_hist.axvline(
         media - desvio_padrao,
         color="#ED7D31",
         linestyle="--",
         linewidth=1.8,
-        label=f"-1 Desvio-Padrão ({media - desvio_padrao:.2f})",
+        label=f"-1 Desvio-Padrao ({media - desvio_padrao:.2f})",
     )
     ax_hist.axvline(
         media + desvio_padrao,
         color="#ED7D31",
         linestyle="--",
         linewidth=1.8,
-        label=f"+1 Desvio-Padrão ({media + desvio_padrao:.2f})",
+        label=f"+1 Desvio-Padrao ({media + desvio_padrao:.2f})",
     )
 
-    ax_hist.set_title("Distribuição das Notas de Matemática e Curva de Gauss", fontsize=13)
-    ax_hist.set_ylabel("Densidade", fontsize=11)
-    ax_hist.legend(loc="upper left", fontsize=9)
+    ax_hist.set_title("Distribuicao das Notas de Matematica e Curva de Gauss")
+    ax_hist.set_ylabel("Densidade")
+    ax_hist.legend(loc="upper left")
     ax_hist.grid(axis="y", linestyle=":", alpha=0.6)
 
-    # 5. Gráfico de caixa (Boxplot)
+    # Boxplot na parte de baixo
     ax_box.boxplot(
         dados,
         orientation="horizontal",
@@ -194,9 +158,9 @@ def gerar_graficos(dados, media, desvio_padrao, caminho_saida="histograma_curva_
         boxprops=dict(facecolor="#5B9BD5", alpha=0.7),
         medianprops=dict(color="#C00000", linewidth=2),
     )
-    ax_box.set_xlabel("Nota de Matemática (math score)", fontsize=11)
+    ax_box.set_xlabel("Nota de Matematica (math score)")
     ax_box.set_yticks([])
-    ax_box.set_title("Gráfico de Caixa (Boxplot)", fontsize=11)
+    ax_box.set_title("Grafico de Caixa (Boxplot)")
     ax_box.grid(axis="x", linestyle=":", alpha=0.6)
 
     plt.tight_layout()
@@ -204,94 +168,76 @@ def gerar_graficos(dados, media, desvio_padrao, caminho_saida="histograma_curva_
     plt.close()
 
 
-# ==============================================================================
-# EXECUÇÃO PRINCIPAL E EXIBIÇÃO DOS RESULTADOS
-# ==============================================================================
 def main():
     arquivo_csv = "StudentsPerformance.csv"
 
     # Parte B
     notas, total_lidos, invalidos = carregar_dados(arquivo_csv, "math score")
-    print("=" * 65)
-    print("PARTE B — LEITURA E ORGANIZAÇÃO DOS DADOS")
-    print("=" * 65)
-    print(f"Total de registros lidos no CSV : {total_lidos}")
-    print(f"Registros válidos carregados    : {len(notas)}")
-    print(f"Valores ausentes ou inválidos   : {invalidos}")
+    print("--- PARTE B: Leitura dos dados ---")
+    print(f"Total de linhas no CSV: {total_lidos}")
+    print(f"Notas validas carregadas: {len(notas)}")
+    print(f"Valores ausentes ou invalidos: {invalidos}\n")
 
     # Parte C
     qtd = len(notas)
-    menor_nota = min(notas)
-    maior_nota = max(notas)
-    amplitude = maior_nota - menor_nota
+    menor = min(notas)
+    maior = max(notas)
+    amplitude = maior - menor
     media = calcular_media(notas)
     mediana = calcular_mediana(notas)
     modas, freq_moda = calcular_modas(notas)
     variancia = calcular_variancia_amostral(notas, media)
-    desvio_padrao = calcular_desvio_padrao_amostral(variancia)
-    assimetria = calcular_assimetria(notas, media, desvio_padrao)
-    assimetria_pearson = (3 * (media - mediana)) / desvio_padrao
+    desvio = calcular_desvio_padrao_amostral(variancia)
+    assimetria = calcular_assimetria(notas, media, desvio)
 
-    print("\n" + "=" * 65)
-    print("PARTE C — MEDIDAS ESTATÍSTICAS (math score)")
-    print("=" * 65)
-    print(f"1. Quantidade de dados          : {qtd}")
-    print(f"2. Menor nota                   : {menor_nota}")
-    print(f"3. Maior nota                   : {maior_nota}")
-    print(f"4. Amplitude total              : {amplitude}")
-    print(f"5. Média aritmética (x̄)         : {media:.4f}")
-    print(f"6. Mediana                      : {mediana:.2f}")
-    print(f"7. Moda(s)                      : {modas} (frequência: {freq_moda})")
-    print(f"8. Variância amostral (s²)      : {variancia:.4f}")
-    print(f"9. Desvio-padrão amostral (s)   : {desvio_padrao:.4f}")
-    print(f"10. Coeficiente de assimetria   : {assimetria:.4f} (Pearson: {assimetria_pearson:.4f})")
+    print("--- PARTE C: Medidas estatisticas ---")
+    print(f"Quantidade de dados: {qtd}")
+    print(f"Menor nota: {menor}")
+    print(f"Maior nota: {maior}")
+    print(f"Amplitude total: {amplitude}")
+    print(f"Media: {media:.4f}")
+    print(f"Mediana: {mediana:.2f}")
+    print(f"Moda: {modas} (aparece {freq_moda} vezes)")
+    print(f"Variancia amostral: {variancia:.4f}")
+    print(f"Desvio-padrao amostral: {desvio:.4f}")
+    print(f"Coeficiente de assimetria: {assimetria:.4f}\n")
 
     # Parte D
-    regra = verificar_regra_empirica(notas, media, desvio_padrao)
+    regra = verificar_regra_empirica(notas, media, desvio)
     esperados = {1: 68.0, 2: 95.0, 3: 99.7}
 
-    print("\n" + "=" * 65)
-    print("PARTE D — REGRA EMPÍRICA 68–95–99,7")
-    print("=" * 65)
+    print("--- PARTE D: Regra 68-95-99,7 ---")
     for k, (lim_inf, lim_sup, cont, perc) in regra.items():
         print(
-            f"Entre x̄ - {k}s e x̄ + {k}s [{lim_inf:6.2f}, {lim_sup:6.2f}]: "
-            f"{cont:4d} notas ({perc:6.2f}%) | Esperado: ~{esperados[k]}%"
+            f"Intervalo de {k} desvio(s) [{lim_inf:.2f} a {lim_sup:.2f}]: "
+            f"{cont} notas ({perc:.2f}%) - esperado: ~{esperados[k]}%"
         )
+    print()
 
     # Parte E
     notas_teste = [
-        ("Menor nota", menor_nota),
-        ("Maior nota", maior_nota),
+        ("Menor nota", menor),
+        ("Maior nota", maior),
         ("Nota 50", 50),
         ("Nota 75", 75),
         ("Nota 90", 90),
     ]
 
-    print("\n" + "=" * 65)
-    print("PARTE E — ESCORES PADRONIZADOS (Z-SCORE)")
-    print("=" * 65)
-    for descricao, valor in notas_teste:
-        z = calcular_escore_z(valor, media, desvio_padrao)
-        status = "ATÍPICO (|z| > 3)" if abs(z) > 3 else "Normal (|z| <= 3)"
-        print(f"{descricao:12s} (x = {valor:3d}) -> z = {z:7.4f}  [{status}]")
+    print("--- PARTE E: Escores z ---")
+    for nome, valor in notas_teste:
+        z = calcular_escore_z(valor, media, desvio)
+        tipo = "Atipico" if abs(z) > 3 else "Normal"
+        print(f"{nome} ({valor}): z = {z:.4f} ({tipo})")
 
-    atipicos = identificar_atipicos(notas, media, desvio_padrao)
-    print("\nValores atípicos encontrados em toda a base (|z| > 3):")
-    if atipicos:
-        for val, z_val in atipicos:
-            print(f"  Nota = {val:3d} | z = {z_val:.4f}")
-    else:
-        print("  Nenhum valor atípico encontrado.")
+    atipicos = buscar_atipicos(notas, media, desvio)
+    print("\nNotas com |z| > 3 em toda a base:")
+    for val, z_val in atipicos:
+        print(f"  Nota {val} -> z = {z_val:.4f}")
 
     # Parte F
-    caminho_grafico = "histograma_curva_normal.png"
-    gerar_graficos(notas, media, desvio_padrao, caminho_grafico)
-    print("\n" + "=" * 65)
-    print("PARTE F — REPRESENTAÇÃO GRÁFICA")
-    print("=" * 65)
-    print(f"Gráfico gerado e salvo em: '{caminho_grafico}'")
-    print("=" * 65)
+    gerar_graficos(notas, media, desvio, "histograma_curva_normal.png")
+    print("\n--- PARTE F: Grafico ---")
+    print("Arquivo salvo como: histograma_curva_normal.png")
 
 
 if __name__ == "__main__":
